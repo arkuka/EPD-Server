@@ -1,0 +1,7 @@
+SELECT `planet_list`.*,`planet_production`.* FROM `planet_list`,`planet_production` where `planet_list`.`PlanetType` = `planet_production`.`PlanetType`
+
+
+select * from (select `PlanetType`,`ProductionName`,`ProductionLevel` from `planet_production` pp inner join `production_catalogue` pc on pp.ProductionType_1=pc.`ProductionType` or pp.ProductionType_2=pc.`ProductionType` or pp.ProductionType_3=pc.`ProductionType` or pp.ProductionType_4=pc.`ProductionType` or pp.ProductionType_5=pc.`ProductionType`) as A
+
+
+SELECT `PlanetType`, `ProductionName`, `ProductionLevel` FROM `v_planet_production_details` AS `V_Planet_Production_Details` WHERE `V_Planet_Production_Details`.`PlanetType` = 'Lava'
