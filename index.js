@@ -84,6 +84,11 @@ connection.query('select * from Charactor_List where 1',function(error,results,f
 	Charactor_List = results;
 })
 
+connection.query('select * from product_catalogue', function(error, results, fields){
+	if(error) throw error;
+	console.log('product_catalogue=',results)
+	Product_Catalogue = results;
+})
 
 app.get('/Charactor_List',function(req,res){
 	res.send(JSON.stringify(Charactor_List));
