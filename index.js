@@ -71,7 +71,7 @@ var connection = mysql.createConnection({
 
 console.log(connection.connect());
 
-connection.query('select * from V_Planet_Product_Details where `planettype` like "%a%" ',function(error,results,fields){
+connection.query('select * from V_Planet_Product_Details ',function(error,results,fields){
 	
 	if(error) throw error;
 	console.log('data:',results);
