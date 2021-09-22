@@ -134,6 +134,9 @@ app.post('/Update_Stock_List', function(req,res){
 
 	console.log('req.body = ', req.body)
 
+	var dstr = 'DELETE FROM `stock_list` WHERE `Abandoned`=1'
+	connection.query(dstr)
+
 	if(Array.isArray(req.body)){
 		req.body.forEach((item_a,index_a)=>{
 			var charactor_id = getIdByCharactorName(item_a.Name)
@@ -172,11 +175,23 @@ function getIdByCharactorName(charactor_name){
 }
 
 function updateStockList(cid,pid,pname,qty){
-	var qstr = 	'INSERT INTO `stock_list`(`CharactorID`, `PlanetID`, `ProductID`, `ProductQty`) VALUES ("'
-				+ cid + '","'
-				+ pid + '","'
-				+ Product_Map_Name2Type[pname] +'","'
-				+ qty +'")'	
 
-	connection.query(qstr)
+	var ptype = Product_Map_Name2Type[pname]
+
+	var ustr = 	'UPDATE `stock_list` SET `Abandoned`=1 WHERE `CharactorID` LIKE "%'
+				+ cid 		+ '%"'
+
+	var istr = 	'INSERT INTO `stock_list`(`CharactorID`, `PlanetID`, `ProductID`, `ProductQty`,`Abandoned`) VALUES ("'
+				+ cid 		+ '","'
+				+ pid 		+ '","'
+				+ ptype 	+'","'
+				+ qty 		+'",0)'
+
+	connection.query(ustr,(err, result)=>{
+		if(err==null){
+			connection.query(istr)
+		}
+	})
+
+	console.log('end of updateStockList')
 }
