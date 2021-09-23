@@ -4,6 +4,10 @@ var cors 						= require('cors')
 var express 					= require('express')
 var app 						= express()
 
+const { v4:uuidv4 }				= require('uuid')
+
+const SV 						= require('./StaticVariables.js')
+
 var Planet_List 				= []
 var Planet_Product 				= []
 var Product_Catalogue 			= []
@@ -11,6 +15,8 @@ var Charactor_List 				= []
 var V_Planet_Product_Details 	= []
 
 var Product_Map_Name2Type 		= []
+
+var Operation_UUIDs				= []
 
 
 var __AK_DEBUG__ = null
@@ -25,7 +31,7 @@ app.use(express.json())
 
 app.use(
 	cors({
-    origin: 'http://localhost:5000'
+    origin : 'http://localhost:5000'
 }));
 
 /*const db = require("./models/index");*/
@@ -72,10 +78,10 @@ app.use(
 
 var mysql = require("mysql");
 var connection = mysql.createConnection({
-	host:'localhost',
-	user:'root',
-	password:'',
-	database:'epd'
+	host		:'localhost',
+	user 		:'root',
+	password	:'',
+	database	:'epd'
 })
 
 __ak_debug__(connection.connect());
@@ -100,8 +106,6 @@ connection.query('select * from product_catalogue', function(error, results, fie
 	Product_Catalogue.forEach((item,index)=>{
 		Product_Map_Name2Type[item.ProductName] = item.ProductType
 	})
-	console.log('Product_Map_Name2Type=',Product_Map_Name2Type)
-	
 })
 
 connection.query('select * from planet_list', function(error, results, fields){
@@ -130,34 +134,112 @@ app.get('/V_Planet_Product_Details',function(req,res){
 	res.send(JSON.stringify(V_Planet_Product_Details));
 })
 
-app.post('/Update_Stock_List', function(req,res){
+app.get('/Operation_Result', function(req,res){
+	const query = url.parse(req.url,true).query
 
-	console.log('req.body = ', req.body)
+	console.log('GET : Operation_Result : Query -- UUID[', query.uuid,']')
+
+	status = SV.HTTP_STATUS_CODE_ACCEPTED
+	result ={
+			status,
+			statusText 	: 'Accepted',
+			pending 	: SV.BASIC_DB_OPERATION_PERIOD,
+			uuid 		: query.uuid
+		}	
+
+	if(query.uuid){
+		if(Operation_UUIDs[query.uuid].welldone){
+			status = SV.HTTP_STATUS_CODE_OK
+			result = {
+				status,
+				statusText 	: 'OK',
+				pending 	: 0
+			}
+		}else if(Operation_UUIDs[query.uuid].allLaunched && (Operation_UUIDs[query.uuid].finished + Operation_UUIDs[query.uuid].failed) == Operation_UUIDs[query.uuid].launched){
+			status = SV.HTTP_STATUS_CODE_INTERNAL_SERVER_ERROR
+			result = {
+				status 		: status,
+				statusText 	: 'Internal Server Error',
+				pending 	: 0
+			 }
+		}
+	}
+
+	if(status != SV.HTTP_STATUS_CODE_ACCEPTED){
+		var dstr = 'DELETE FROM `stock_list` WHERE `Abandoned`=1'
+		connection.query(dstr)
+		
+		console.log('GET : Operation_Result : Delete - UUID[',query.uuid,']')
+		delete Operation_UUIDs[query.uuid]		
+	}
+
+	res.status(status)
+	res.send(result)
+})
+
+app.post('/Stock_List', function(req,res){
 
 	var dstr = 'DELETE FROM `stock_list` WHERE `Abandoned`=1'
 	connection.query(dstr)
 
+	var operation_uuid = {
+		uuid 		: uuidv4(),
+		launched 	: 0,
+		finished 	: 0,
+		failed		: 0,
+		allLaunched	: false,
+		welldone	: false
+	}
+
+	Operation_UUIDs[operation_uuid.uuid]=operation_uuid
+
+	console.log('POST : Stock_List : Set ---- UUID[',operation_uuid.uuid,']')
+
+	var status = SV.HTTP_STATUS_CODE_ACCEPTED
+
+	var result = {
+		status,
+		statusText	: 'Accepted',
+		pending		: SV.BASIC_DB_OPERATION_PERIOD,
+		uuid 		: operation_uuid.uuid
+	}
+
 	if(Array.isArray(req.body)){
 		req.body.forEach((item_a,index_a)=>{
-			var charactor_id = getIdByCharactorName(item_a.Name)
-
-			console.log(item_a.Name,'=>',charactor_id)
+			var charactor_id = getIdByCharactorName(item_a.Name)			
 
 			if(item_a.Planet_List && item_a.Planet_List.length>0){
+
 				item_a.Planet_List.forEach((item_b, index_b)=>{
+
 					var planet_id = item_b.Planet_ID
 
 					if(item_b.Stock_List && item_b.Stock_List.length>0){
+
 						item_b.Stock_List.forEach((item_c,index_c)=>{
-								updateStockList(charactor_id,planet_id,item_c.Product_Name, item_c.Product_Qty)
+								updateStockList(charactor_id,planet_id,item_c.Product_Name, item_c.Product_Qty, operation_uuid)
 						})
+
 					}
+
 				})
 			}
 		})
-	}	
+		operation_uuid.allLaunched = true
+	}
 
-	res.send('Update_Stock_List Processed')
+	if(operation_uuid.launched==0){
+		status = SV.HTTP_STATUS_CODE_OK
+		result = {
+			status,
+			statusText : 'OK'
+		}		
+		console.log('POST : Stock_List : Delete - UUID[',operation_uuid.uuid,']')
+		delete Operation_UUIDs[operation_uuid.uuid]
+	}
+
+	res.status(status)
+	res.send(result)
 })
 
 app.listen(5001);
@@ -174,7 +256,7 @@ function getIdByCharactorName(charactor_name){
 	return charactor_id
 }
 
-function updateStockList(cid,pid,pname,qty){
+function updateStockList(cid,pid,pname,qty,operation_uuid){
 
 	var ptype = Product_Map_Name2Type[pname]
 
@@ -188,10 +270,22 @@ function updateStockList(cid,pid,pname,qty){
 				+ qty 		+'",0)'
 
 	connection.query(ustr,(err, result)=>{
-		if(err==null){
-			connection.query(istr)
+		if(err==null){			
+			connection.query(istr,(err,result)=>{
+
+				if(err==null){
+					operation_uuid.finished++					
+				}else{
+					operation_uuid.failed++					
+				}	
+
+				if(operation_uuid.allLaunched == true && operation_uuid.launched == operation_uuid.finished){
+					operation_uuid.welldone = true
+				}
+			})
+
+			
 		}
 	})
-
-	console.log('end of updateStockList')
+	operation_uuid.launched++	
 }
