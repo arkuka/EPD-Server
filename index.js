@@ -182,7 +182,7 @@ app.post('/Stock_List', function(req,res){
 	var dstr = 'DELETE FROM `stock_list` WHERE `Abandoned`=1'
 	connection.query(dstr)
 
-	var operation_uuid = {
+	var operation_record_with_uuid = {
 		uuid 		: uuidv4(),
 		launched 	: 0,
 		finished 	: 0,
@@ -191,9 +191,9 @@ app.post('/Stock_List', function(req,res){
 		welldone	: false
 	}
 
-	Operation_UUIDs[operation_uuid.uuid]=operation_uuid
+	Operation_UUIDs[operation_record_with_uuid.uuid]=operation_record_with_uuid
 
-	console.log('POST : Stock_List : Set ---- UUID[',operation_uuid.uuid,']')
+	console.log('POST : Stock_List : Set ---- UUID[',operation_record_with_uuid.uuid,']')
 
 	var status = SV.HTTP_STATUS_CODE_ACCEPTED
 
@@ -201,7 +201,7 @@ app.post('/Stock_List', function(req,res){
 		status,
 		statusText	: 'Accepted',
 		pending		: SV.BASIC_DB_OPERATION_PERIOD,
-		uuid 		: operation_uuid.uuid
+		uuid 		: operation_record_with_uuid.uuid
 	}
 
 	if(Array.isArray(req.body)){
@@ -217,7 +217,7 @@ app.post('/Stock_List', function(req,res){
 					if(item_b.Stock_List && item_b.Stock_List.length>0){
 
 						item_b.Stock_List.forEach((item_c,index_c)=>{
-								updateStockList(charactor_id,planet_id,item_c.Product_Name, item_c.Product_Qty, operation_uuid)
+								updateStockList(charactor_id,planet_id,item_c.Product_Name, item_c.Product_Qty, operation_record_with_uuid)
 						})
 
 					}
@@ -225,17 +225,17 @@ app.post('/Stock_List', function(req,res){
 				})
 			}
 		})
-		operation_uuid.allLaunched = true
+		operation_record_with_uuid.allLaunched = true
 	}
 
-	if(operation_uuid.launched==0){
+	if(operation_record_with_uuid.launched==0){
 		status = SV.HTTP_STATUS_CODE_OK
 		result = {
 			status,
 			statusText : 'OK'
 		}		
-		console.log('POST : Stock_List : Delete - UUID[',operation_uuid.uuid,']')
-		delete Operation_UUIDs[operation_uuid.uuid]
+		console.log('POST : Stock_List : Delete - UUID[',operation_record_with_uuid.uuid,']')
+		delete Operation_UUIDs[operation_record_with_uuid.uuid]
 	}
 
 	res.status(status)
@@ -256,7 +256,7 @@ function getIdByCharactorName(charactor_name){
 	return charactor_id
 }
 
-function updateStockList(cid,pid,pname,qty,operation_uuid){
+function updateStockList(cid,pid,pname,qty,operation_record_with_uuid){
 
 	var ptype = Product_Map_Name2Type[pname]
 
@@ -266,26 +266,26 @@ function updateStockList(cid,pid,pname,qty,operation_uuid){
 	var istr = 	'INSERT INTO `stock_list`(`CharactorID`, `PlanetID`, `ProductID`, `ProductQty`,`Abandoned`) VALUES ("'
 				+ cid 		+ '","'
 				+ pid 		+ '","'
-				+ ptype 	+'","'
-				+ qty 		+'",0)'
+				+ ptype 	+ '","'
+				+ qty 		+ '",0)'
 
 	connection.query(ustr,(err, result)=>{
 		if(err==null){			
 			connection.query(istr,(err,result)=>{
 
 				if(err==null){
-					operation_uuid.finished++					
+					operation_record_with_uuid.finished++					
 				}else{
-					operation_uuid.failed++					
+					operation_record_with_uuid.failed++					
 				}	
 
-				if(operation_uuid.allLaunched == true && operation_uuid.launched == operation_uuid.finished){
-					operation_uuid.welldone = true
+				if(operation_record_with_uuid.allLaunched == true && operation_record_with_uuid.launched == operation_record_with_uuid.finished){
+					operation_record_with_uuid.welldone = true
 				}
 			})
 
 			
 		}
 	})
-	operation_uuid.launched++	
+	operation_record_with_uuid.launched++	
 }
