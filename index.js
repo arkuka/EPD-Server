@@ -213,6 +213,7 @@ app.post('/Stock_List', function(req,res){
 				item_a.Planet_List.forEach((item_b, index_b)=>{
 
 					var planet_id = item_b.Planet_ID
+					abandonOldRecord(charactor_id, planet_id)
 
 					if(item_b.Stock_List && item_b.Stock_List.length>0){
 
@@ -256,36 +257,37 @@ function getIdByCharactorName(charactor_name){
 	return charactor_id
 }
 
+function abandonOldRecord(cid, pid)
+{
+	var ustr = 	'UPDATE `stock_list` SET `Abandoned`=1 WHERE `CharactorID` LIKE "%'
+				+ cid 		+ '%" and `PlanetID` LIKE "%'
+				+ pid 		+ '%"'
+
+	connection.query(ustr)
+}
+
 function updateStockList(cid,pid,pname,qty,operation_record_with_uuid){
 
 	var ptype = Product_Map_Name2Type[pname]
-
-	var ustr = 	'UPDATE `stock_list` SET `Abandoned`=1 WHERE `CharactorID` LIKE "%'
-				+ cid 		+ '%"'
 
 	var istr = 	'INSERT INTO `stock_list`(`CharactorID`, `PlanetID`, `ProductID`, `ProductQty`,`Abandoned`) VALUES ("'
 				+ cid 		+ '","'
 				+ pid 		+ '","'
 				+ ptype 	+ '","'
 				+ qty 		+ '",0)'
+		
+	connection.query(istr,(err,result)=>{
 
-	connection.query(ustr,(err, result)=>{
-		if(err==null){			
-			connection.query(istr,(err,result)=>{
+		if(err==null){
+			operation_record_with_uuid.finished++					
+		}else{
+			operation_record_with_uuid.failed++					
+		}	
 
-				if(err==null){
-					operation_record_with_uuid.finished++					
-				}else{
-					operation_record_with_uuid.failed++					
-				}	
-
-				if(operation_record_with_uuid.allLaunched == true && operation_record_with_uuid.launched == operation_record_with_uuid.finished){
-					operation_record_with_uuid.welldone = true
-				}
-			})
-
-			
+		if(operation_record_with_uuid.allLaunched == true && operation_record_with_uuid.launched == operation_record_with_uuid.finished){
+			operation_record_with_uuid.welldone = true
 		}
 	})
+	
 	operation_record_with_uuid.launched++	
 }
