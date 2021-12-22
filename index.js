@@ -12,6 +12,7 @@ var Planet_List 				= []
 var Planet_Product 				= []
 var Product_Catalogue 			= []
 var Charactor_List 				= []
+var Formula_List				= []
 var V_Planet_Product_Details 	= []
 
 var Product_Map_Name2Type 		= []
@@ -114,6 +115,12 @@ connection.query('select * from planet_list', function(error, results, fields){
 	Planet_List = results;
 })
 
+connection.query('select * from formula_list', function(error, results, fields){
+	if(error) throw error;
+	__ak_debug__('formula_list=',results)
+	Formula_List = results;
+})
+
 app.get('/Charactor_List',function(req,res){
 	res.send(JSON.stringify(Charactor_List));
 })
@@ -128,6 +135,10 @@ app.get('/Planet_Product',function(req,res){
 
 app.get('/Product_Catalogue',function(req,res){
 	res.send(JSON.stringify(Product_Catalogue));
+})
+
+app.get('/Formula_List', function(req, res){
+	res.send(JSON.stringify(Formula_List));
 })
 
 app.get('/V_Planet_Product_Details',function(req,res){
@@ -206,7 +217,7 @@ app.post('/Stock_List', function(req,res){
 
 	if(Array.isArray(req.body)){
 		req.body.forEach((item_a,index_a)=>{
-			var charactor_id = getIdByCharactorName(item_a.Name)			
+			var charactor_id = getIdByCharactorName(item_a.Name)
 
 			if(item_a.Planet_List && item_a.Planet_List.length>0){
 
